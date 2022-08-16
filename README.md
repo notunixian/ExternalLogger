@@ -10,7 +10,7 @@ As of right now, it's just a simple console application but I have no plans to m
 If you want to clear your cache to log avatars you have cached, you are free to do that inside of VRChat's settings.
 
 ### Warning ⚠
-This will **break** being able to connect to sites that use certificate pinning (all google services, dropbox, mega, etc.) **if you are using firefox.** you can fix this easily by going into the proxy settings inside of Firefox and select "No Proxy" instead of "Use System Proxy Settings".
+This will **break** being able to connect to sites that use certificate pinning (all google services, dropbox, mega, etc.) **if you are using firefox.** You can fix this easily by going into the proxy settings inside of Firefox and select "No Proxy" instead of "Use System Proxy Settings".
 
 ### How It Works
 
