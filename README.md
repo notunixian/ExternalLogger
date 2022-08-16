@@ -21,7 +21,7 @@ This will **break** being able to connect to sites that use certificate pinning 
 
 ### How to Use
 
-* Launch the program, append commands if needed, ```-download``` to download avatars when logged and ```-log``` to log avatars.
+* Launch the program, append commands if needed: ```-download``` to download avatars when logged and ```-log``` to log avatars.
 * You will be prompted to install a certificate, allow it and install it.
 * Start loading avatars and you'll notice they are being logged.
 
