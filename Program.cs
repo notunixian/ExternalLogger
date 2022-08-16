@@ -141,7 +141,7 @@ namespace ExternalLogger
                     {
                         if (!Directory.Exists($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA"))
                         {
-                            Directory.CreateDirectory($"{System.Reflection.Assembly.GetExecutingAssembly().Location}\\VRCA");
+                            Directory.CreateDirectory($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA");
                         }
 
                         if (!File.Exists($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA\\log.txt"))
@@ -151,7 +151,7 @@ namespace ExternalLogger
 
                         using (StreamWriter w = File.AppendText($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA\\log.txt"))
                         {
-                            await w.WriteLineAsync($"{System.Web.HttpUtility.UrlDecode(uri.AbsolutePath).Trim()} : {uri.Segments[3].Substring(0, index)} \n");
+                            await w.WriteLineAsync($"{System.Web.HttpUtility.UrlDecode(uri.AbsolutePath).Trim()} : {uri.Segments[3].Substring(0, index)}");
                         }
                     }
                 }
