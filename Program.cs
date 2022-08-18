@@ -1,24 +1,28 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
-using System.Text;
+using System.Net.Http;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using Titanium.Web.Proxy;
 using Titanium.Web.Proxy.EventArguments;
 using Titanium.Web.Proxy.Models;
-using Titanium.Web.Proxy.Network;
-using System.Security.Cryptography.X509Certificates;
-using System.IO;
-using System.Reflection;
 
-namespace ExternalLogger
+namespace VRCEXLOGGER
 {
-    internal class main
+    static class Program
     {
+        /// <summary>
+        ///  The main entry point for the application.
+        /// </summary>
+      //  [STAThread]
         public static ProxyServer ProxyServer;
 
-        public int ListeningPort => ProxyServer.ProxyEndPoints[0].Port;
+        public static int ListeningPort => ProxyServer.ProxyEndPoints[0].Port;
 
         public static bool download = false;
 
@@ -39,12 +43,17 @@ namespace ExternalLogger
         }
 
 
-
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool AllocConsole();
+        [STAThread]
         public static void Main(string[] args)
         {
-            Console.WriteLine("simple external vrchat avatar logger by unixian");
-            Console.WriteLine("if this is your first time launching, you will be prompted to install a root certificate.");
-            Console.WriteLine("install it to allow the external logger to decrypt HTTPS data from vrchat.\n");
+            AllocConsole();
+            Console.Title = "VRCEX";
+            LoggerUtils.Log("simple external vrchat avatar logger by unixian");
+            LoggerUtils.Log("if this is your first time launching, you will be prompted to install a root certificate.");
+            LoggerUtils.Log("install it to allow the external logger to decrypt HTTPS data from vrchat.\n");
 
             bool provided_command = false;
             if (args.Length > 0)
@@ -63,8 +72,8 @@ namespace ExternalLogger
                         break;
 
                     default:
-                        Console.WriteLine("You provided an invalid command, the program will continue as normal.\n");
-                        Console.WriteLine("Reminder: the only available commands is -download and -log.");
+                        LoggerUtils.Log("You provided an invalid command, the program will continue as normal.\n");
+                        LoggerUtils.Log("Reminder: the only available commands is -download and -log.");
                         break;
                 }
             }
@@ -72,10 +81,10 @@ namespace ExternalLogger
 
             if (provided_command == false)
             {
-                Console.WriteLine("Would you like to download all logged avatars into a folder?");
-                Console.WriteLine($"Logged avatars will be saved to: \n{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA \n");
-                Console.WriteLine($"If you want to start the program with one of these options, append -download or -log before starting the app.");
-                Console.WriteLine("Enter a selection [y/n]: ");
+                LoggerUtils.Log("Would you like to download all logged avatars into a folder?");
+                LoggerUtils.Log($"Logged avatars will be saved to: \n{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA \n");
+                LoggerUtils.Log($"If you want to start the program with one of these options, append -download or -log before starting the app.");
+                LoggerUtils.Log("Enter a selection [y/n]: ");
                 var key = Console.ReadLine();
                 if (key.ToLower() == "y")
                 {
@@ -91,15 +100,15 @@ namespace ExternalLogger
 
             SetupProxy();
 
+
             ProxyServer.BeforeRequest += ProcessRequest;
             ProxyServer.BeforeResponse += ProcessResponse;
             ProxyServer.ServerCertificateValidationCallback += ProcessCertValidation;
-
-            Console.WriteLine("\nfinished init, program will run as normal. press the enter key to exit whenever.");
-
+            LoggerUtils.Log("\nfinished init, program will run as normal. press the enter key to exit whenever.");
+            Application.Run(new d());
             Console.Read();
 
-            Console.WriteLine("\ncleaning up...");
+            LoggerUtils.Log("\ncleaning up...");
             Cleanup();
         }
 
@@ -112,7 +121,8 @@ namespace ExternalLogger
                 return;
             }
         }
-
+        internal static string LastAviLog = "";
+        internal static TextBox tb;
         public static async Task ProcessResponse(object sender, SessionEventArgs e)
         {
             string url = e.HttpClient.Request.RequestUri.AbsoluteUri;
@@ -125,8 +135,13 @@ namespace ExternalLogger
                 {
                     var uri = new UriBuilder(download_link.ToString()).Uri;
                     var index = uri.Segments[3].IndexOf("Asset");
-                    Console.WriteLine($"successfully logged avatar {uri.Segments[3].Substring(0, index)}");
-
+                    
+                    LoggerUtils.Log($"successfully logged avatar {uri.Segments[3].Substring(0, index)}");
+                    var s  = $"LAST AVATAR LOGGED: {uri.Segments[3].Substring(0, index)}";
+                    LastAviLog = s.Replace("Avatar-", "");
+                    d.dd.UpdateTextBox(LastAviLog);
+                    
+                    LastAviLog = uri.Segments[3].Substring(0, index);
                     if (download)
                     {
                         if (!Directory.Exists($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA"))
@@ -191,7 +206,6 @@ namespace ExternalLogger
             ProxyServer.RestoreOriginalProxySettings();
             ProxyServer.Stop();
             ProxyServer.Dispose();
-        }
-
+        } 
     }
 }
