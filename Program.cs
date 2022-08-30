@@ -11,6 +11,8 @@ using Titanium.Web.Proxy.Network;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
 using System.Reflection;
+using Titanium.Web.Proxy.Http;
+using Titanium.Web.Proxy.StreamExtended.Network;
 
 namespace ExternalLogger
 {
@@ -21,6 +23,8 @@ namespace ExternalLogger
         public int ListeningPort => ProxyServer.ProxyEndPoints[0].Port;
 
         public static bool download = false;
+
+        public static List<string> list = new List<string>();
 
         public static void SetupProxy()
         {
@@ -34,8 +38,7 @@ namespace ExternalLogger
                 Console.WriteLine("proxy listening on {0}:{1}", endPoint.IpAddress, endPoint.Port);
             endpoint.BeforeTunnelConnectResponse += ProcessConnect;
 
-            ProxyServer.SetAsSystemHttpProxy(endpoint);
-            ProxyServer.SetAsSystemHttpsProxy(endpoint);
+            ProxyServer.SetAsSystemProxy(endpoint, ProxyProtocolType.AllHttp);
         }
 
 
@@ -83,6 +86,7 @@ namespace ExternalLogger
                 }
                 else if (key.ToLower() == "n")
                 {
+                    Console.WriteLine("\n\nWARNING: Due to VRChat making the links to VRCA files expire, these links may expire at any time meaning you will not be able to download them.");
                     download = false;
                 }
             }
@@ -92,10 +96,10 @@ namespace ExternalLogger
             SetupProxy();
 
             ProxyServer.BeforeRequest += ProcessRequest;
-            ProxyServer.BeforeResponse += ProcessResponse;
             ProxyServer.ServerCertificateValidationCallback += ProcessCertValidation;
+            
 
-            Console.WriteLine("\nfinished init, program will run as normal. press the enter key to exit whenever.");
+            Console.WriteLine("\nproxy is now running, any avatars that you haven't cached will log/download. to exit anytime press the exit key.");
 
             Console.Read();
 
@@ -106,62 +110,63 @@ namespace ExternalLogger
 
         public static async Task ProcessRequest(object sender, SessionEventArgs e)
         {
-            string url = e.HttpClient.Request.RequestUri.AbsoluteUri;
-            if (!url.Contains("api.vrchat.cloud"))
-            {
-                return;
-            }
-        }
 
-        public static async Task ProcessResponse(object sender, SessionEventArgs e)
-        {
-            string url = e.HttpClient.Request.RequestUri.AbsoluteUri;
-            if (url.Contains("https://api.vrchat.cloud/api/1/file/") && e.HttpClient.Response.StatusCode == 302)
-            {
-                var download_link = e.HttpClient.Response.Headers.Headers["Location"];
-                var ext = System.IO.Path.GetExtension(download_link.ToString());
+            // s/o to angelcoder for telling me that titanium adds a header
+            e.HttpClient.Request.Headers.RemoveHeader("Connection");
 
-                if (ext == ".vrca")
+            string url = e.HttpClient.Request.RequestUri.AbsoluteUri;
+            if (url.Contains("files.vrchat.cloud"))
+            {
+                if (url.Contains(".vrca"))
                 {
-                    var uri = new UriBuilder(download_link.ToString()).Uri;
-                    var index = uri.Segments[3].IndexOf("Asset");
-                    Console.WriteLine($"successfully logged avatar {uri.Segments[3].Substring(0, index)}");
-
-                    if (download)
+                    if (!list.Contains(url))
                     {
-                        if (!Directory.Exists($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA"))
-                        {
-                            Directory.CreateDirectory($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA");
-                        }
+                        list.Add(url);
+                        var uri = e.HttpClient.Request.RequestUri;
+                        var index = uri.Segments[1].IndexOf(".");
 
-                        var client = new HttpClient();
-                        DownloadAvatar(uri, client);
-                    }
-                    else
-                    {
-                        if (!Directory.Exists($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA"))
-                        {
-                            Directory.CreateDirectory($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA");
-                        }
 
-                        if (!File.Exists($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA\\log.txt"))
+                        if (download)
                         {
-                            File.CreateText($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA\\log.txt").Close();
-                        }
+                            if (!Directory.Exists($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA"))
+                            {
+                                Directory.CreateDirectory($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA");
+                            }
 
-                        using (StreamWriter w = File.AppendText($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA\\log.txt"))
+                            var client = new HttpClient();
+                            DownloadAvatar(uri, client, index);
+
+                        }
+                        else
                         {
-                            await w.WriteLineAsync($"{System.Web.HttpUtility.UrlDecode(uri.AbsolutePath).Trim()} : {uri.Segments[3].Substring(0, index)}");
+                            if (!Directory.Exists($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA"))
+                            {
+                                Directory.CreateDirectory($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA");
+                            }
+
+                            if (!File.Exists($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA\\log.txt"))
+                            {
+                                File.CreateText($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA\\log.txt").Close();
+                            }
+
+                            using (StreamWriter w = File.AppendText($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA\\log.txt"))
+                            {
+                                await w.WriteLineAsync($"{System.Web.HttpUtility.UrlDecode(uri.AbsolutePath).Trim()} : {uri.Segments[1].Substring(0, index)}");
+                                Console.WriteLine($"successfully logged avatar {uri.Segments[1].Substring(0, index)}");
+                            }
                         }
                     }
                 }
             }
+
         }
 
-        private static async void DownloadAvatar(Uri uri, HttpClient client)
+
+        private static async void DownloadAvatar(Uri uri, HttpClient client, int index)
         {
-            var data = await client.GetByteArrayAsync(System.Web.HttpUtility.UrlDecode(uri.AbsolutePath).Trim());
-            await File.WriteAllBytesAsync($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA\\{uri.Segments[3]}", data);
+            var data = await client.GetByteArrayAsync(System.Web.HttpUtility.UrlDecode(uri.AbsoluteUri).Trim());
+            await File.WriteAllBytesAsync($"{System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)}\\VRCA\\{uri.Segments[1]}", data);
+            Console.WriteLine($"successfully logged avatar {uri.Segments[1].Substring(0, index)}");
         }
 
         public static Task ProcessCertValidation(object sender, CertificateValidationEventArgs e)
@@ -184,10 +189,27 @@ namespace ExternalLogger
             }
         }
 
+        private static void WebSocketDataSentReceived(SessionEventArgs args, DataEventArgs e, bool sent)
+        {
+            foreach (var frame in args.WebSocketDecoder.Decode(e.Buffer, e.Offset, e.Count))
+            {
+                if (frame.OpCode == WebsocketOpCode.Binary)
+                {
+                    var data = frame.Data.ToArray();
+                    string str = string.Join(",", data.ToArray().Select(x => x.ToString("X2")));
+                    Console.WriteLine(str);
+                }
+
+                if (frame.OpCode == WebsocketOpCode.Text)
+                {
+                    Console.WriteLine(frame.GetText());
+                }
+            }
+        }
+
         public static void Cleanup()
         {
             ProxyServer.BeforeRequest -= ProcessRequest;
-            ProxyServer.BeforeResponse -= ProcessResponse;
             ProxyServer.RestoreOriginalProxySettings();
             ProxyServer.Stop();
             ProxyServer.Dispose();
