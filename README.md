@@ -12,6 +12,10 @@ If you want to clear your cache to log avatars you have cached, you are free to 
 ### Warning ⚠
 This will **break** being able to connect to sites that use certificate pinning (all google services, dropbox, mega, etc.) **if you are using firefox.** You can fix this easily by going into the proxy settings inside of Firefox and select "No Proxy" instead of "Use System Proxy Settings".
 
+### Warning #2 ⚠
+**This logger is expected to break when the Menu 2.0 update drops**, as they have added some checks for proxys and certificate pinning. This will make it basically useless to try to fetch requests as VRC will deny them as it fails their cert checks. When this update drops, this repository will most likely be archived.
+
+
 ### How It Works
 
 * Creates a proxy using the mentioned web proxy library.
